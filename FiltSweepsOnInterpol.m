@@ -1,14 +1,14 @@
-function ExcludedMask = FiltSweepsOnInterpol(Samples, SearchBaseMask, TrigsForAlignment, FilterConfig)
+function ExcludedMask = FiltSweepsOnInterpol(Samples, SearchBaseMask, TrigsForAlignment, ISISec, FilterConfig)
 
     ExcludedMask = false(length(TrigsForAlignment), 1);
-    InterpolRatios = support_calcInterpolRatios(Samples.Ts, Samples.OrigSamplesTs, TrigsForAlignment, Samples.SRate, Samples.OrigSRate);
+    InterpolPercentages = support_calcInterpolPercentages(Samples.Ts, Samples.OrigSamplesTs, TrigsForAlignment, ISISec, Samples.SRate, Samples.OrigSRate);
         
     for i = 1:length(TrigsForAlignment)
         if ~SearchBaseMask(i)
             continue
         end
 
-        if InterpolRatios(i) > FilterConfig.Threshold
+        if InterpolPercentages(i) > FilterConfig.Threshold
             ExcludedMask(i) = true;
         end
 

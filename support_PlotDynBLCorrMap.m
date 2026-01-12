@@ -7,6 +7,10 @@ function support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta)
     dv_cols = [Config.DynBLCorrMap.DVFrom Config.DynBLCorrMap.DVTo];
     T = readtable(Config.DynBLCorrMap.BehavDF); 
     num_dv = (dv_cols(2)-dv_cols(1)+1);
+    
+    if Config.DynBLCorrMap.A1Sign == 'any'
+        log_w(['No expected sign specified for dynamic baseline corr map correlative tests']);
+    end
 
     for dv = 1:num_dv % cycle through dependent variable
 
@@ -68,7 +72,14 @@ function support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta)
                     TEPREveryParticipant(:, subtractVal );
 
                 try
-                    [RHO,PVAL] = corr(T{:,(dv_cols(1)+dv-1)}, statAtDelta, 'Type', Config.DynBLCorrMap.CorrelMethod, 'rows','complete'); % omits NaN
+%                     [RHO,PVAL] = corr(T{:,(dv_cols(1)+dv-1)}, statAtDelta, 'Type', Config.DynBLCorrMap.CorrelMethod, 'rows','complete');
+                    if Config.DynBLCorrMap.A1Sign > 0
+                        [RHO,PVAL] = corr(T{:,(dv_cols(1)+dv-1)}, statAtDelta, 'Type', Config.DynBLCorrMap.CorrelMethod, 'rows','complete','Tail','right');
+                    elseif Config.DynBLCorrMap.A1Sign < 0
+                        [RHO,PVAL] = corr(T{:,(dv_cols(1)+dv-1)}, statAtDelta, 'Type', Config.DynBLCorrMap.CorrelMethod, 'rows','complete','Tail','left');
+                    elseif Config.DynBLCorrMap.A1Sign == 0
+                        [RHO,PVAL] = corr(T{:,(dv_cols(1)+dv-1)}, statAtDelta, 'Type', Config.DynBLCorrMap.CorrelMethod, 'rows','complete');
+                    end
                 catch ME
                     ErrorsEnc = true;
                     RHO = NaN; PVAL = NaN;
@@ -95,13 +106,13 @@ function support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta)
         set(hck,'EdgeColor','none');
         set(gca, 'Layer', 'top');
     %     ylim([-1 1]);
-
-        xticks_desired = 0:0.2:( (Config.AnalyzeLenSample/Meta.NomSRate)-mod( (Config.AnalyzeLenSample/Meta.NomSRate), 0.2));
+        
+        xticks_desired = 0:Config.Plot.DynBLCorrMap.XTickInt:( (Config.AnalyzeLenSample/Meta.NomSRate)-mod( (Config.AnalyzeLenSample/Meta.NomSRate), Config.Plot.DynBLCorrMap.XTickInt));
         xticks_sampleMapped = zeros(1, length(xticks_desired));
         for i=1:length(xticks_desired)
             xticks_sampleMapped(i) = (xticks_desired(i)/(Config.AnalyzeLenSample/Meta.NomSRate) *Config.AnalyzeLenSample);
         end
-        xticks_sampleMapped = xticks_sampleMapped + abs(xticks_sampleMapped(1)/2);
+        xticks_sampleMapped = xticks_sampleMapped + abs(xticks_sampleMapped(1)/2) -Config.AnalyzeFromSample;
         
 %         for i=1:length(xticks_sampleMapped)
 %             xp = [xticks_sampleMapped(i) xticks_sampleMapped(i)];
@@ -113,7 +124,8 @@ function support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta)
         if Config.Plots.Markings.Enabled == true
             grayB = 0.7;
             for s = 0:(Config.AnalyzeLenSample-1)
-                if mod(s-Config.AnalyzeFromSample, Config.ISISample) == 0 
+                % NOTE: BUG FOUND HERE ON 2025.12.14.: "s-" was used instead of "s+" ... I do not know why.
+                if mod(s+Config.AnalyzeFromSample, Config.ISISample) == 0 
 
                     if Config.AlignToStimOrResp == true % STIMULUS ALIGNED
                         xline(s, 'Color', [grayB grayB grayB]);
@@ -166,13 +178,25 @@ function support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta)
         hold off
         
         title(strrep(['Baseline corrected TEPR value (' Config.Filter.Behav.FriendlyName ') x ' T.Properties.VariableNames{Config.DynBLCorrMap.DVFrom+dv-1}],'_','-'));
-        OutFilePath = ['~RESULTS/' Meta.RootDirTag '/' 'TEPR dyn baseline corr maps' ' Config.AlignToStimOrResp=' num2str(Config.AlignToStimOrResp) ' filt=' num2str(Config.Filter.Behav.Enabled) ' (' Config.Filter.Behav.FriendlyName ')'  '/' ];
+        OutFilePath = ['~RESULTS/' Meta.RootDirTag '/' 'TEPR dyn baseline corr maps' ' AlignSR=' num2str(Config.AlignToStimOrResp) ' filt=' num2str(Config.Filter.Behav.Enabled) ' (' Config.Filter.Behav.FriendlyName ')'  '/' ];
         OutFileName = ['TEPR-corrmap' '-' Config.DynBLCorrMap.CorrelMethod '_' 'dep-var=' T.Properties.VariableNames{Config.DynBLCorrMap.DVFrom+dv-1} ' filt=' num2str(Config.Filter.Behav.Enabled) ' (' Config.Filter.Behav.FriendlyName ')'  '.png'];
                 
+
+        % DEV
+        % dirty trick to only show time section beginning from 0 to end
+        % TODO. only calculate to-be-shown region in order to spare CPU and time
+        xlim([-Config.AnalyzeFromSample Config.AnalyzeLenSample])
+        ylim([-Config.AnalyzeFromSample Config.AnalyzeLenSample])
+        % IMPORTANT
+        % TODO:
+        % the "whole" map verison might be wrong currently! (does it use
+        % analytic from sample or from 0 ?)
+
+
         mkdir(OutFilePath);
         
-%         set(gcf, 'Position', get(0, 'Screensize'));
-        set(gcf, 'Position', get(0, 'Screensize')*Config.Plots.ScaleFactor);
+        set(gcf, 'Position', get(0, 'Screensize')*0.9);
+%         set(gcf, 'Position', get(0, 'Screensize')*Config.Plots.ScaleFactor);
         pbaspect([1 1 1]) % looks like a square, better readable
         saveas(gcf,[OutFilePath OutFileName]);
 

@@ -11,13 +11,10 @@ LOGLEVEL = 4; % info, warning and debug too
 % --------------------------------------------------
 % CONFIG
 
-Config.ExpDirName = 'NBACK_ver1_s1_MUTUAL_BE';
-% Config.ExpDirName = 'NBACK_ver1_s2_MUTUAL_BE';
+Config.ExpDirName = 'PLR_LUND';
 
-
-Config.ETDataFormat = 'SMI';
-% Config.ETDataFormat = 'PupilEXT';
-% Config.ETDataFormat = 'EyeLink';
+% Config.ETDataFormat = 'Tobii';
+Config.ETDataFormat = 'PupilEXT';
 
 
 % --------------------------------------------------
@@ -30,7 +27,9 @@ Meta.RootDirTag = [Meta.RootDirTag '_' Config.ETDataFormat];
 disp(['Using eye tracker data format: ' Config.ETDataFormat]);
 
 Config = support_DefineETDataSpecs(Config);
-Participants = support_FindParticipantsByFiles(Config, ['~RAWDATA/' Config.ETDeviceDirName '/*' Config.ExpDirName], Config.ETDataFileNameEnding);
+
+Participants = support_FindParticipantsByFiles(Config, false);
+
 
 % --------------------------------------------------
 % PROCESS AND SAVE

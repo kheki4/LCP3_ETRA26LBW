@@ -1,4 +1,4 @@
-function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
+function support_PlotTEPR(TrialsArray, TEPRCurves, ERLEveryTrial, Config, Meta, Participant, excludedTrials)
    
     close(gcf);
     figure
@@ -27,13 +27,18 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
 
             % Transform to milliseconds
             set(currentPlot, 'XData', (get(currentPlot, 'XData')-1) / Meta.NomSRate * 1000 + Config.AnalyzeFromSec*1000);
-    
-            % DEV
-            ylim([-6 6]);
+
+            % plot separately, transformed
+            if Config.ERL.Enabled
+                xline(ERLEveryTrial(Participant.Nr, p));
+            end
+
+%             % DEV
+%             ylim(Config.Plot.TEPR.YLim);
         end
     else
         
-        TEPRtoPlot = TEPRCurves(:, Participant.Nr) - mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan');
+        TEPRtoPlot = TEPRCurves(:, Participant.Nr); % - mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan');
         plot_time = 0:(length(TEPRCurves(:, Participant.Nr))-1);
     
         if ~exist('TEPR_lineStyle', 'var') %ide majd isfield kell (isfield(behav, 'stimType'))
@@ -44,12 +49,17 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
     
         currentPlot = plot(plot_time, TEPRtoPlot, TEPR_lineStyle, 'Color', TEPR_lineColor, 'LineWidth', TEPR_lineWidth);
 
+        % plot separately, transformed
+        if Config.ERL.Enabled
+            xline(mean(ERLEveryTrial(Participant.Nr, :), 'omitnan'));
+        end
+
         % Transform to milliseconds
         set(currentPlot, 'XData', (get(currentPlot, 'XData')-1) / Meta.NomSRate * 1000 + Config.AnalyzeFromSec*1000);
 
     end
         
-    if exist('Config.Plot.TEPR.YLim', 'var') && ~isnan(Config.Plot.TEPR.YLim)
+    if isfield(Config.Plot.TEPR, 'YLim') & ~isnan(Config.Plot.TEPR.YLim)
         ylim(Config.Plot.TEPR.YLim);
     end
    
@@ -60,8 +70,10 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
     xlim(Config.Plot.TEPR.XLim);
     
     if Config.Plots.Grid
-        grid on;
-        grid minor;
+        %grid on;
+        %grid minor;
+		set(gca,'XGrid','on','YGrid','on')
+		set(gca, 'XMinorGrid', 'on', 'YMinorGrid', 'on')
     end  
     
     if Config.Plots.Markings.Enabled == true
@@ -108,7 +120,7 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
 %     title(['TEPR curve averaged across all Participants']);
     xlabel(['Time [ms]']);
     if Config.Z_norm_method == 0
-        if Meta.flag_PXorMM == 1
+        if Meta.Flag_PXorMM == 1
             ylabel(['Pupil size [px]']);
         else
             ylabel(['Pupil size [mm]']);
@@ -121,7 +133,6 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
         '~RESULTS/' Meta.RootDirTag '/' ...
         'TEPR each iteration' ...
         ' alignSR=' num2str(Config.AlignToStimOrResp) ...
-        ' skipN=' num2str(Config.SkipFirstNtrials) ...
         ' filt=' num2str(Config.Filter.Behav.Enabled) ...
         ' (' Config.Filter.Behav.FriendlyName ')' ...
         '/']);
@@ -133,7 +144,6 @@ function support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant)
     OutFileName = char([ ...
         Participant.ID '_response_each-iter' ...
         ' alignSR=' num2str(Config.AlignToStimOrResp) ...
-        ' skipN=' num2str(Config.SkipFirstNtrials) ...
         ' filt=' num2str(Config.Filter.Behav.Enabled) ...
         ' (' Config.Filter.Behav.FriendlyName ')' ...
         '.png']);

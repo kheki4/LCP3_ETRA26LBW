@@ -1,4 +1,4 @@
-function [p_timestamp, p_pupdil] = DQ_RemoveSamplesByConfidence(timestamp, pupdil, conf, outlineConf, confidenceThreshold, outlineConfidenceThreshold)
+function [p_timestamp, p_pupdil, p_conf, p_outlineConf] = DQ_RemoveSamplesByConfidence(timestamp, pupdil, conf, outlineConf, confidenceThreshold, outlineConfidenceThreshold)
 
     mask = false(size(timestamp, 1), 1);
 
@@ -40,5 +40,7 @@ function [p_timestamp, p_pupdil] = DQ_RemoveSamplesByConfidence(timestamp, pupdi
   
     p_timestamp = timestamp(mask);
     p_pupdil = pupdil(mask);
+    p_conf = conf(mask);
+    p_outlineConf= outlineConf(mask);
     
 end

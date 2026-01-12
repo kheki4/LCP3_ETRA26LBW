@@ -30,6 +30,16 @@ function result = support_eventRelatedFunc(trials_array, method)
             [tempf, tempxi] = ksdensity(trials_array(chu,:));
             result(chu) = max(tempf);
         end
+    elseif method == 10 % ERPD-CV /RSD (coefficient of variation, not in percentage)
+        result = std(trials_array, 0, 2,'omitnan') ./ mean(trials_array,2,'omitnan');
+    elseif method == 11 % TEPR-Sh - Shapiro
+        for chu = 1:size(trials_array, 1)
+            % NOTE: data has to be a column
+            [H, pValue, W] = support_swtest(trials_array(chu,:));
+            result = pValue;
+        end
+    elseif method == 12 % TEPR (Median)
+        result = median(trials_array, 2, 'omitnan');
     end
 
 end

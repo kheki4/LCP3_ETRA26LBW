@@ -42,13 +42,15 @@ function FigHandle = support_PlotGrandERAConf(ERAConfCurves, Config, Meta)
     end
     xlim(Config.Plot.GrandTEPR.XLim);
 
-    if ~isnan(Config.Plot.GrandERA.YLim)
-        ylim([0.85,1]);
+    if isnan(Config.Plot.GrandERA.YLim)
+        ylim([0.85 1]);
     end
 
     if Config.Plots.Grid
-        grid on;
-        grid minor;
+        %grid on;
+        %grid minor;
+		set(gca,'XGrid','on','YGrid','on')
+		set(gca, 'XMinorGrid', 'on', 'YMinorGrid', 'on')
     end
     
     
@@ -112,9 +114,8 @@ function FigHandle = support_PlotGrandERAConf(ERAConfCurves, Config, Meta)
                 mkdir(OutFilePath);
             end
 
-            OutFileName = ['ERA'];
+            OutFileName = ['ERA_Conf'];
             OutFileName = [OutFileName ' alignSR=' num2str(Config.AlignToStimOrResp)];
-            OutFileName = [OutFileName ' skipN=' num2str(Config.SkipFirstNtrials)];
             OutFileName = [OutFileName ' filt=' num2str(Config.Filter.Behav.Enabled)];
             OutFileName = [OutFileName ' (' Config.Filter.Behav.FriendlyName ')'];
             if Config.Plot.GrandTEPR.EveryParticipant

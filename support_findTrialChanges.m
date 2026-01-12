@@ -2,8 +2,11 @@ function T = support_findTrialChanges(tr, trial_ts)
 
     %format longG;
     
-    uniq_tr = transpose(unique(tr));
-%     uniq_tr = unique(tr);
+    % TODO: Olyan mintha SMI és PupilEXT esetén vagy kéne vagy sem
+    uniq_tr = unique(tr);
+    uniq_tr = reshape(uniq_tr, [length(uniq_tr) 1]);
+%     uniq_tr = transpose(unique(tr));
+% %     uniq_tr = unique(tr);
 
     if uniq_tr ~= tr 
         log_e('Non-unique trial vector')

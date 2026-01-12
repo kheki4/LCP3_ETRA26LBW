@@ -1,11 +1,11 @@
-function [interpol_ratio] = DQ_CalcInterpLossAnalogWhole(timestamp, orig_srate, trig_trial, trig_timestamp, ISIsec)
+function [interpol_ratio] = DQ_CalcInterpLossAnalogWhole(timestamp, orig_srate, trig_trial, trig_timestamp, ISIsec, StimOnScreenSec)
 
     startTime = trig_timestamp(1);
-    if isnan(ISIsec)
-        log_w(['ISIsec parameter was found to be NaN. The end timestamp of the last trial could not be estimated accordingly.' newline() 'The last valid timestamp of all samples will be used instead.'])
+    if isnan(ISIsec) || isnan(StimOnScreenSec)
+        log_w(['ISIsec or StimOnScreenSec parameter was found to be NaN. The end timestamp of the last trial could not be estimated accordingly.' newline() 'The last valid timestamp of all samples will be used instead.'])
         endTime = timestamp(end);
     else
-        endTime = trig_timestamp(end) + ISIsec*1000*1000; % microsec
+        endTime = trig_timestamp(end) + (ISIsec+StimOnScreenSec)*1000*1000; % microsec
     end
     recDuration = endTime-startTime;
 

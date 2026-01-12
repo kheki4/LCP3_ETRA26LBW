@@ -26,7 +26,7 @@ function NewTrialsArray = support_ZNormSweeps(Samples, TrialsArray, SearchBaseMa
         elseif Z_norm_method == 3
             z_norm_reference = std(reshape(TrialsArray(:,1:numTrials),1,[]), 'omitnan');  % convert matrix to row vector
         elseif Z_norm_method == 4
-            z_norm_reference = std(reshape(TrialsArray(~RejectedTrials,i),1,[]), 'omitnan');  % convert matrix to row vector
+            z_norm_reference = std(reshape(TrialsArray(SearchBaseMask,i),1,[]), 'omitnan');  % convert matrix to row vector
         %else
         %    log_e('Invalid Z-normalization method defined');
         end

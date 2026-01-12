@@ -40,8 +40,8 @@ function support_PlotERA(EventDensity, ERAConfCurves, Config, Meta, Participant)
     % Transform to milliseconds
     set(currentPlot, 'XData', (get(currentPlot, 'XData')-1) / Meta.NomSRate * 1000 + Config.AnalyzeFromSec*1000);
         
-    if ~isnan(Config.Plot.TEPR.YLim)
-        ylim(Config.Plot.TEPR.YLim);
+    if ~isnan(Config.Plot.ERA.YLim)
+        ylim(Config.Plot.ERA.YLim);
     end
     
     if isnan(Config.Plot.TEPR.XLim)
@@ -54,8 +54,10 @@ function support_PlotERA(EventDensity, ERAConfCurves, Config, Meta, Participant)
 % % %     xline(round(stimPresentedAtSec*1000)); % stim prez
     
     if Config.Plots.Grid
-        grid on;
-        grid minor;
+        %grid on;
+        %grid minor;
+		set(gca,'XGrid','on','YGrid','on')
+		set(gca, 'XMinorGrid', 'on', 'YMinorGrid', 'on')
     end
       
     if Config.Plots.Markings.Enabled == true
@@ -108,7 +110,6 @@ function support_PlotERA(EventDensity, ERAConfCurves, Config, Meta, Participant)
         '~RESULTS/' Meta.RootDirTag '/' ...
         'ERA each iteration' ...
         ' alignSR=' num2str(Config.AlignToStimOrResp) ...
-        ' skipN=' num2str(Config.SkipFirstNtrials) ...
         ' filt=' num2str(Config.Filter.Behav.Enabled) ...
         ' (' Config.Filter.Behav.FriendlyName ')' ...
         '/']);
@@ -120,7 +121,6 @@ function support_PlotERA(EventDensity, ERAConfCurves, Config, Meta, Participant)
     OutFileName = char([ ...
         Participant.ID '_response_each-iter' ...
         ' alignSR=' num2str(Config.AlignToStimOrResp) ...
-        ' skipN=' num2str(Config.SkipFirstNtrials) ...
         ' filt=' num2str(Config.Filter.Behav.Enabled) ...
         ' (' Config.Filter.Behav.FriendlyName ')' ...
         '.png']);

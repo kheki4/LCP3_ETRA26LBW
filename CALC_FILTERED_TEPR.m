@@ -24,20 +24,25 @@ DEVMODE = false;
 % Initializing defaults (must happen here)
 CONFIG_TEPR_DEFAULTS
 
-% Config for the actual experiment (may be custom)
-CONFIG_TEPR_NBACK
-
+CONFIG_TEPR_PLR_LUND
 
 % --------------------------------------------------
 % PREPARE VARIABLES
 
 Meta = load(['~PREPDATA/' Config.ETDSDirName '/' 'Metafile' '.mat']);
+
+if ~isempty(Config.RootDirTagSuffix)
+    Meta.RootDirTag = [Meta.RootDirTag Config.RootDirTagSuffix];
+    disp(['Root Dir Tag Suffix used: ' Config.RootDirTagSuffix]);
+end
+
 if DEVMODE
     Meta.RootDirTag = [Meta.RootDirTag '_DEV'];
     disp('RUNNING IN DEVELOPER MODE');
 end
 
-Participants = support_FindParticipantsByFiles(Config, ['~PREPDATA/' Config.ETDSDirName], '.mat');
+Participants = support_FindParticipantsByFiles(Config, true);
+NumParticipants = size(Participants,2);
 
 if isnan(Config.Plot.GrandTEPR.XLim)
     Config.Plot.GrandTEPR.XLim = [Config.AnalyzeFromSec*1000 Config.AnalyzeToSec*1000];
@@ -55,8 +60,6 @@ end
 
 % --------------------------------------------------
 % PREPARE EXPERIMENT-SPECIFIC VARIABLES 
-
-NumParticipants = size(Participants,2);
 
 ERAEventDensity_grand = [];
 
@@ -82,6 +85,15 @@ Config.PeakToSample = round(Meta.NomSRate *Config.PeakToSec) +1;
 Config.BaselineFromSample = round(Meta.NomSRate *Config.BaselineFromSec) +1;
 Config.BaselineToSample = round(Meta.NomSRate *Config.BaselineToSec) +1;
 
+if isnan(Config.ERL.FromSec)
+    Config.ERL.FromSec = 0;
+end
+if isnan(Config.ERL.ToSec)
+    Config.ERL.ToSec = Config.PeakToSec;
+end
+Config.ERL.FromSample = round(Meta.NomSRate *Config.ERL.FromSec) +1;
+Config.ERL.ToSample = round(Meta.NomSRate *Config.ERL.ToSec) +1;
+
 % Mapped sample values, can be used for indexing the event-related curve
 Config.PeakFromSampleMapped = (-1*Config.AnalyzeFromSample) +Config.PeakFromSample +1;
 Config.PeakToSampleMapped = (-1*Config.AnalyzeFromSample) +Config.PeakToSample;
@@ -98,7 +110,7 @@ Config.FixBeforeStimSample = round( Meta.NomSRate *Config.FixBeforeStimSec);
 Config.ISISample = round(Meta.NomSRate *Meta.ISISec);
 Config.AnalyzeLenSample = round(Meta.NomSRate *Config.AnalyzeLenSec) +1; % We store data at 0th elem too
 
-NumTrials = Meta.FilterTrials(2);
+NumTrials = Meta.NumTrials;
 
 RejectTrialsUnderLen = floor(RejectTrialsUnderSec * Meta.NomSRate);
 RejectTrialsOverLen = floor(RejectTrialsOverSec * Meta.NomSRate);
@@ -111,7 +123,15 @@ Config.Filter.Behav.V = '~';
 Config.Filter.Behav.FriendlyName = 'All Trials';
 
 if Config.Save.BaselineValues
+    BaselineValuesEveryTrial = NaN(NumParticipants, NumTrials);
     BaselineValues = NaN(NumParticipants, 1);
+end
+
+if Config.ERL.Enabled
+    ERLEveryTrial = NaN(NumParticipants, NumTrials);
+    ERLVEveryTrial = NaN(NumParticipants, NumTrials);
+    ERL = NaN(NumParticipants, 1);
+    ERLV = NaN(NumParticipants, 1);
 end
 
 Filter.SD.PercentFiltered = zeros(NumParticipants, 1);
@@ -124,6 +144,7 @@ Filter.SOISaccade.PercentFiltered = zeros(NumParticipants, 1);
 
 TEPRCurves = NaN(Config.AnalyzeLenSample, NumParticipants);
 PeakValues = NaN(NumParticipants, 1);
+ERL = NaN(NumParticipants, 1);
 TRIAL_EXCLUSIONS = NaN(NumParticipants, 9);
 TEPREveryParticipant = NaN( NumParticipants, Config.AnalyzeLenSample );
 TIMECOURSE_BRUTE = NaN( NumParticipants, Config.AnalyzeLenSample );
@@ -131,7 +152,7 @@ TIMECOURSE_BRUTE = NaN( NumParticipants, Config.AnalyzeLenSample );
 % --------------------------------------------------
 % LOOP TO PROCESS PARTICIPANTS
 
-for ppnr = 1:NumParticipants
+for ppnr = 1:NumParticipants % DEV % 16-os indexu a 298-as
     
     Participant.ID = Participants{ppnr};
     Participant.Nr = ppnr;
@@ -163,15 +184,21 @@ for ppnr = 1:NumParticipants
     
     if Config.AlignToStimOrResp
         TrigsForAlignment = Triggers.Stim.Ts;
+        TrigsForAlignmentVBL = Triggers.VBL.Ts;
     else
         % TODO: check if exists
-        TrigsForAlignment = Triggers.resp.Ts;
+        TrigsForAlignment = Triggers.Resp.Ts;
     end
     
     % --------------------------------------------------
     % REJECT CERTAIN TRIALS FROM ANY PROCESSING
     
+    if ~isempty(Config.RejectTrials)
+        RejectedTrials(Config.RejectTrials) = true;
+    end
+
     for v = 1:NumTrials
+        % DEV: NOTE: no checks implemented yet for variable-baselines (VBL) using TrigsForAlignmentVBL
 
         % E.g. when we are making a response-aligned analysis, and the subject has no response in a trial
         if isnan(TrigsForAlignment(v))
@@ -181,6 +208,36 @@ for ppnr = 1:NumParticipants
 
         % Skip first N trials if necessary (e.g. when there was no separate practice block)
         if v <= Config.SkipFirstNtrials
+            RejectedTrials(v) = true;
+            continue;
+        end
+
+        % Only include the said trial section (rejection is exclusive, so
+        % the mentioned trials will still be kept). If the specified trial
+        % window does not overlap with Config.SkipFirstNtrials, the first N
+        % trials will still be kept.
+        if all(~isnan(Config.RejectTrialsExceptExclusive)) && length(Config.RejectTrialsExceptExclusive) == 2 && ...
+            ~isempty(Config.RejectTrialsExceptExclusive) && ...
+            (v < Config.RejectTrialsExceptExclusive(1) || v > Config.RejectTrialsExceptExclusive(2))
+
+            RejectedTrials(v) = true;
+            continue;
+        end
+
+        % Only include the said trial section (rejection is exclusive, so
+        % the mentioned trials will still be kept). First N trials will be
+        % also rejected within this section.
+        if all(~isnan(Config.RejectTrialsExceptExclusiveWithSkipFirstN)) && length(Config.RejectTrialsExceptExclusiveWithSkipFirstN) == 2 && ...
+            ~isempty(Config.RejectTrialsExceptExclusiveWithSkipFirstN) && ...
+            (v < (Config.RejectTrialsExceptExclusiveWithSkipFirstN(1) + Config.SkipFirstNtrials) || v > Config.RejectTrialsExceptExclusiveWithSkipFirstN(2))
+
+            RejectedTrials(v) = true;
+            continue;
+        end
+
+        % Reject specific trials if necessary (e.g. when there was no separate practice block, 
+        %  or at the beginning of each block there are practice trials)
+        if ismember(v, Config.RejectSpecificTrials)
             RejectedTrials(v) = true;
             continue;
         end
@@ -200,6 +257,20 @@ for ppnr = 1:NumParticipants
         if ( length(TrigsForAlignment) > v && ...
                 ( find(Samples.Ts >= TrigsForAlignment(v), 1, 'first')) + Config.AnalyzeFromSample < 1 || ...
                 (find(Samples.Ts >= TrigsForAlignment(v), 1, 'first') + Config.AnalyzeLenSample > length(Samples.Ts) ) ) 
+
+            RejectedTrials(v) = true;
+            continue;
+        end
+        
+        % reject trials that would later break the pipeline because their VBL analyzed period begins earlier than the first sample, or later than the last
+        if ( Config.UseVBL && ...
+                length(TrigsForAlignmentVBL) > v && ...
+                ( ...
+                    Samples.Ts(1) > TrigsForAlignmentVBL(v) || ...
+                    Samples.Ts(end) < TrigsForAlignmentVBL(v) || ...
+                    any((find(Samples.Ts >= TrigsForAlignmentVBL(v), 1, 'first')) + Config.AnalyzeFromSample < 1) || ...
+                    any(find(Samples.Ts >= TrigsForAlignmentVBL(v), 1, 'first') + Config.AnalyzeLenSample > length(Samples.Ts)) ...
+                )) 
 
             RejectedTrials(v) = true;
             continue;
@@ -225,9 +296,21 @@ for ppnr = 1:NumParticipants
     % SPLIT SIGNAL INTO SEGMENTS (aka SWEEPS or TRIALS)
     
     [TrialsArray, ConfsArray] = support_SplitIntoSweeps(Samples, ~RejectedTrials, TrigsForAlignment, Config, Config.PerformTJC);
+
+    [VBLsArray, VBLsConfsArray] = support_SplitIntoSweeps(Samples, ~RejectedTrials, TrigsForAlignmentVBL, Config, Config.PerformTJC);
+    clear VBLsConfsArray;
     
     % --------------------------------------------------
     % WITHIN-TRIAL PROCESSING
+
+    % DISREGARD SPECIFIC SECTIONS OF SPECIFIC TRIALS IF NECESSARY
+    if ~isempty(Config.DisregardTrialSections)
+        TrialsArray = support_DisregardTrialSections(TrialsArray, Config, Meta); 
+    end
+
+    if Config.DisregardTrialSectionsOnBehav
+        TrialsArray = feval(Config.DisregardTrialSectionsOnBehavFunction, TrialsArray, Config, Meta, Participant);
+    end
     
     % Z-NORMALIZATION
     if Config.Z_norm_method ~= 0
@@ -249,7 +332,7 @@ for ppnr = 1:NumParticipants
         end
 
         [Config.Filter.Behav, Config.Plot.GrandTEPR] = feval(Config.BehavInitFunction, Config.Filter.Behav, Config.Plot.GrandTEPR);
-        Config.Filter.Behav.ExcludedMask = feval(Config.BehavFiltFunction, NumTrials, Behav, Config.Filter.Behav);
+        Config.Filter.Behav.ExcludedMask = feval(Config.BehavFiltFunction, NumTrials, Behav, Config.Filter.Behav, RejectedTrials);
         
     end
     %----------------------------------------------------------------------------------------------------------------
@@ -270,15 +353,15 @@ for ppnr = 1:NumParticipants
 
         for cx=1:length(Config.CC.Conds)
             LocalFilterConfig.CondComb = Config.CC.Conds(cx);
-            Config.CC.ExcludedMasks(:, cx) = callable_behavfilt_NBACK(NumTrials, Behav, LocalFilterConfig);
+            Config.CC.ExcludedMasks(:, cx) = callable_behavfilt_NBACK(NumTrials, Behav, LocalFilterConfig, RejectedTrials);
         end
         
     end
     %----------------------------------------------------------------------------------------------------------------
     
     if Config.Filter.Interpol.Enabled
-        log_i(['Excluding trials whose interpolation ratio is greater than ' num2str(Config.Filter.Interpol.Threshold)]);
-        Filter.Interpol.ExcludedMask = FiltSweepsOnInterpol(Samples, ~RejectedTrials, TrigsForAlignment, Config.Filter.Interpol);
+        log_i(['Excluding trials whose interpolation percentage is greater than ' num2str(Config.Filter.Interpol.Threshold)]);
+        [Filter.Interpol.ExcludedMask, InterpolPercentages] = FiltSweepsOnInterpolVBL(Samples, ~RejectedTrials, TrigsForAlignment, Triggers.VBL.Ts, Meta.ISISec, Config.Filter.Interpol);
     end
     if Config.Filter.SD.Enabled
         log_d(['SD of whole recording: ' num2str(std( Samples.Pupdil , 'omitnan'))]);
@@ -289,11 +372,19 @@ for ppnr = 1:NumParticipants
     end
     if Config.Filter.BaselineBlink.Enabled
         log_i(['Excluding trials whose baseline-correction-period (BLP) would either contain a blink start, or blink end, or would completely fall within a blink']);
-        Filter.BaselineBlink.ExcludedMask = FiltSweepsOnBlink(Blinks, ~RejectedTrials, TrigsForAlignment, Config.Filter.BaselineBlink);
+        if Config.UseVBL
+            Filter.BaselineBlink.ExcludedMask = FiltSweepsOnBlink(Blinks, ~RejectedTrials, TrigsForAlignmentVBL, Config.Filter.BaselineBlink);
+        else
+            Filter.BaselineBlink.ExcludedMask = FiltSweepsOnBlink(Blinks, ~RejectedTrials, TrigsForAlignment, Config.Filter.BaselineBlink);
+        end
     end
     if Config.Filter.BaselineSaccade.Enabled
         log_i(['Excluding trials whose baseline-correction-period (BLP) would contain a saccade']);
-        Filter.BaselineSaccade.ExcludedMask = FiltSweepsOnSaccade(Saccades, ~RejectedTrials, TrigsForAlignment, Config.Filter.BaselineSaccade);
+        if Config.UseVBL
+            Filter.BaselineSaccade.ExcludedMask = FiltSweepsOnSaccade(Saccades, ~RejectedTrials, TrigsForAlignmentVBL, Config.Filter.BaselineSaccade);
+        else
+            Filter.BaselineSaccade.ExcludedMask = FiltSweepsOnSaccade(Saccades, ~RejectedTrials, TrigsForAlignment, Config.Filter.BaselineSaccade);
+        end
     end
     if Config.Filter.SOIBlink.Enabled
         log_i(['Excluding trials whose time-section-of-interest (SOI) would either contain a blink start, or blink end, or would completely fall within a blink']);
@@ -362,6 +453,7 @@ for ppnr = 1:NumParticipants
         
         % TODO: Put Sample, Blinks, Saccades in a structure, and keep them NaN if empty
         % TODO: beutify
+        % TODO: in case of KDE resample to be equally long as analyticlen, so that we can make Dyn BL corr maps with it
         ERAEventDensity = support_CalcERADensity(Samples, Blinks, Saccades, ~RejectedTrials, TrigsForAlignment, Config);
         
         % TODO: 
@@ -428,9 +520,16 @@ for ppnr = 1:NumParticipants
     % --------------------------------------------------
     % PEAK VALUES COMPUTATION
     
-    if Config.BLCLocalOrGlobal == true
+    if Config.BLC == 0
+        log_w('No baseline correction preformed')
+    elseif Config.BLC == 1 % BLC locally
+        log_i('Performing baseline correction on each trial of the participant')
         for b = 1:NumTrials
-            TrialsArray(:, b) = TrialsArray(:, b) - mean(TrialsArray(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, b), 'omitnan');
+            if Config.UseVBL
+                TrialsArray(:, b) = TrialsArray(:, b) - mean(VBLsArray(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, b), 'omitnan');
+            else
+                TrialsArray(:, b) = TrialsArray(:, b) - mean(TrialsArray(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, b), 'omitnan');
+            end
         end
         clear b;
     end
@@ -464,9 +563,18 @@ for ppnr = 1:NumParticipants
         OutFileName = char([ ...
             Participant.ID '_TEPR' ...
             ' alignSR=' num2str(Config.AlignToStimOrResp) ...
-            ' skipN=' num2str(Config.SkipFirstNtrials) ...
             ]);
         writecell(outputMatrix ,[OutFilePath OutFileName '.csv'],'Delimiter',';');
+    end
+    
+    % WITHIN SUBJECT baseline averages for each trial
+    if Config.Save.BaselineValues
+        % TODO: átgondoltabban
+        if Config.UseVBL
+            BaselineValuesEveryTrial(Participant.Nr,:) = mean(VBLsArray(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped,:), 1, 'omitnan');
+        else
+            BaselineValuesEveryTrial(Participant.Nr,:) = mean(TrialsArray(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped,:), 1, 'omitnan');
+        end
     end
 
     % DEV:
@@ -498,6 +606,8 @@ for ppnr = 1:NumParticipants
     
     % ERA CONFIDENCE
     if Config.ERA.Enabled
+        % TODO: hibat kapunk ha az analyzefromsec-et visszabb hozzuk es nem
+        % clear-elunk old-new elemzesekkor
         ERAConfCurves(:, Participant.Nr)= ...
             support_eventRelatedFunc(ConfsArray, Config.EventRelatedMethod);
     end
@@ -517,31 +627,49 @@ for ppnr = 1:NumParticipants
 
     % Also keep the non-baseline-corrected data
     TEPREveryParticipant(Participant.Nr,:) = TEPRCurves(:, Participant.Nr);
-    
-    if Config.BLCLocalOrGlobal == true
+
+    if Config.BLC == 1
+        log_i('Aggregating individual, baseline corrected TEPRs to a grand curve.')
+%         PeakValues(Participant.Nr, 1) = ... 
+%             max(TEPRCurves(Config.PeakFromSampleMapped:Config.PeakToSampleMapped, Participant.Nr), [], 'all');
         PeakValues(Participant.Nr, 1) = ... 
             mean(TEPRCurves(Config.PeakFromSampleMapped:Config.PeakToSampleMapped, Participant.Nr), 'omitnan');
-    else
+    elseif Config.BLC == 2
+        log_w('Using GLOBAL BASELINE CORRECTION, at aggregation to a grand curve.')
+        log_w('No variable-baseline (VBL) correction performed this way.') % NOTE: egyelőre nem akartam külön curves tömböt csinálni csak a VBL esetekre
         PeakValues(Participant.Nr, 1) = ... 
             mean(TEPRCurves(Config.PeakFromSampleMapped:Config.PeakToSampleMapped, Participant.Nr), 'omitnan') - ...
-            mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan');
+            mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan')
     end
     
     if Config.Save.BaselineValues
+        % TODO: átgondoltabban
         BaselineValues(Participant.Nr) = ...
                 mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan');
+        BaselineValuesCV(Participant.Nr) = ...
+                std(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan') ./ ...
+                mean(TEPRCurves(Config.BaselineFromSampleMapped:Config.BaselineToSampleMapped, Participant.Nr), 'omitnan');
+    end
+
+    if Config.ERL.Enabled
+        % TODO: átgondoltabban
+        [ERLEveryTrial(Participant.Nr, :), ERLVEveryTrial(Participant.Nr, :)] = support_CalcERL(Config, TrialsArray, Meta);
+        ERL(Participant.Nr) = mean(ERLEveryTrial(Participant.Nr, :), 'omitnan');
+        ERLV(Participant.Nr) = mean(ERLVEveryTrial(Participant.Nr, :), 'omitnan');
     end
 
     if Config.Save.EveryTrial
         % NOTE: This does not try to save the different versions according to "TEPR condComputed" behav. filter selection
         % TODO: save according to any binary mask
         % TODO: remove redundant baseline correction step
+        % TODO: include variable-baseline data too (VBL) (?) 
         support_SaveEveryTrial(TrialsArray, Meta, Config, Participant);
     end
     
     if Config.Plot.TEPR.Make
         % TODO: test and beautify
-        support_PlotTEPR(TrialsArray, TEPRCurves, Config, Meta, Participant);
+        % TODO: show ERLV
+        support_PlotTEPR(TrialsArray, TEPRCurves, ERLEveryTrial, Config, Meta, Participant, excludedTrials);
     end
     
     if Config.ERA.Enabled && Config.Plot.ERA.Make
@@ -561,6 +689,7 @@ if Config.Plot.GrandTEPR.Make
     % TODO: make it work with layered fig properly WHILE still keeping
     % support for everyparticipant plot
     grandTEPR(Config.Plots.LayeredFigCounter) = support_PlotGrandTEPR(TEPRCurves, Config, Meta);
+%     grandTEPR(Config.Plots.LayeredFigCounter) = support_PlotGrandTEPR_coloredSections(TEPRCurves, Config, Meta);
 end
 
 
@@ -580,12 +709,35 @@ end
 % TODO: not only plot, but save in csv
 if Config.Plot.DynBLcorrMap.Make
     support_PlotDynBLCorrMap(TEPREveryParticipant, Config, Meta);
+
+%     % DEV
+%     support_PlotDynBLCorrMap(ERAConfCurves', Config, Meta);
 end
 
+if Config.Plot.TimecourseCorrel.Make
+    support_PlotTimecourseCorrel(TEPREveryParticipant, Config, Meta);
+end
+
+% TODO: remove NaNs and only pass empty into csv
 if Config.Save.BaselineValues
-    support_SaveBaselineValues(BaselineValues, Config, Meta, Participants);
+%     support_SaveBaselineValuesEveryTrial(BaselineValuesEveryTrial,Config, Meta, Participants);
+    support_SaveValuesEveryTrial(BaselineValuesEveryTrial,Config, Meta, Participants, 'TEPR csv', 'PD_Baseline-values every trial');
+    % % DEV
+%     plot(BaselineValuesEveryTrial')
+%     grid minor
+    
+    support_SaveBaselineValues(BaselineValues, BaselineValuesCV, BaselineValuesEveryTrial, Config, Meta, Participants); % TODO
 end
 
+% TODO: remove NaNs and only pass empty into csv
+if Config.ERL.Enabled
+    support_SaveValuesEveryTrial(ERLEveryTrial,Config, Meta, Participants, 'TEPR csv', 'ERL');
+    support_SaveValuesEveryTrial(ERLVEveryTrial,Config, Meta, Participants, 'TEPR csv', 'ERLV');
+
+    % TODO: save ERL not only for EveryTrial
+end
+
+% TODO: remove NaNs and only pass empty into csv
 if Config.Save.PeakValues
     support_SavePeakValues(PeakValues, Config, Meta, Participants);
 end

@@ -5,14 +5,19 @@ function [TrialsArray, ConfsArray] = support_SplitIntoSweeps(Samples, SearchBase
     ConfsArray = NaN(TimeDefs.AnalyzeLenSample, length(TrigsForAlignment));
     
     for i = 1:length(TrigsForAlignment)
+        
         if ~SearchBaseMask(i)
-           continue
+           continue;
         end
         
         BeginAtSample = find(Samples.Ts >= TrigsForAlignment(i), 1, 'first') + TimeDefs.AnalyzeFromSample;
 
         if ~PerformTJC
-
+%             disp(i)
+%             disp(BeginAtSample:(BeginAtSample+TimeDefs.AnalyzeLenSample-1))
+            if(BeginAtSample < 1)
+                log_e('Wrongly specified trigger timestamps and/or variable-baseline (VBL) timestamps');
+            end
             TrialsArray(:,i) = Samples.Pupdil( BeginAtSample:(BeginAtSample+TimeDefs.AnalyzeLenSample-1) );
 
         else
