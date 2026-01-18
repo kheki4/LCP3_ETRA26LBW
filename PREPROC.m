@@ -367,7 +367,8 @@ for ppnr = 1:length(Participants) % 23: 298 hibás VBL-es
         if mod(golay_winlen, 2) == 0
             golay_winlen = golay_winlen + 1;
         end
-        Samples.Pupdil = sgolayfilt(Samples.Pupdil, 5, golay_winlen); % 3, 11
+        
+        Samples.Pupdil = sgolayfilt(Samples.Pupdil, GolayOrder, golay_winlen); % 3, 11
     end
 
     % TODO: why here?

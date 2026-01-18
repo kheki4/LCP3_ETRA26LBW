@@ -85,6 +85,8 @@ legend({'Spark', 'PupilEXT'}, 'Location', 'northeast')
 xlabel('Pupillary Light Response pupil diameter [a.u.]') % baseline-corrected, z-normalized, of single trial responses
 ylabel('Frequency [-]') % approximated by Kernel Density Estimation
 %
+ylim([0 1.3])
+%
 grid on
 grid minor
 %
