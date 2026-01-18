@@ -15,8 +15,8 @@ Config.PXorMM = true;
 Config.OutputNomSRate = 40; % Hz
 
 
-GolayWinSizeFactor = 0.5;
-GolayOrder = 5;
+GolayWinSizeFactor = 0.1;
+GolayOrder = 4;
 
 Config.MapBehav = false;
 

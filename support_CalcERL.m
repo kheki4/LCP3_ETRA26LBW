@@ -10,20 +10,16 @@ function [ERLEveryTrial, ERLVEveryTrial] = support_CalcERL(Config, TrialsArray, 
 
         if Config.ERL.Method == 1
             [pks, locs] = findpeaks(x);
-            if length(locs) < 1
-                % likely only happens if signal is monotonously decreasing
-                ERLEveryTrial(i) = 0 + Config.ERL.FromSample-Config.AnalyzeFromSample;
-            else
-                ERLEveryTrial(i) = locs(1) + Config.ERL.FromSample-Config.AnalyzeFromSample;
-            end
+
+            [globalEx, idx] = max(pks);
+            globalExLoc = locs(idx);
+            ERLEveryTrial(i) = globalExLoc + Config.ERL.FromSample-Config.AnalyzeFromSample;
         elseif Config.ERL.Method == 2
             [pks, locs] = findpeaks(-x);
-            if length(locs) < 1
-                % likely only happens if signal is monotonously increasing
-                ERLEveryTrial(i) = length(x) + Config.ERL.FromSample-Config.AnalyzeFromSample;
-            else
-                ERLEveryTrial(i) = locs(1) + Config.ERL.FromSample-Config.AnalyzeFromSample;
-            end
+
+            [globalEx, idx] = max(pks);
+            globalExLoc = locs(idx);
+            ERLEveryTrial(i) = globalExLoc + Config.ERL.FromSample-Config.AnalyzeFromSample;
         elseif Config.ERL.Method == 3
             xd2 = diff(x,2);
             zc = find(xd2(1:end-1).*xd2(2:end) < 0);

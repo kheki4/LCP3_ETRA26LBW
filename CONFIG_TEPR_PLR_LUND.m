@@ -1,11 +1,11 @@
 
 % PLR LUND
 
-% Config.ETDSDirName = 'PLR_LUND_DQ_MM_Tobii';
-% Config.Plot.GrandTEPR.LineColor = '#1170be'; % matlab stock blue, but reproducible
+Config.ETDSDirName = 'PLR_LUND_DQ_MM_Tobii';
+Config.Plot.GrandTEPR.LineColor = '#1170be'; % matlab stock blue, but reproducible
 
-Config.ETDSDirName = 'PLR_LUND_DQ_PX_PupilEXT';
-Config.Plot.GrandTEPR.LineColor = '#dd5500'; % matlab stock orange, but reproducible
+% Config.ETDSDirName = 'PLR_LUND_DQ_PX_PupilEXT';
+% Config.Plot.GrandTEPR.LineColor = '#dd5500'; % matlab stock orange, but reproducible
 
 % % Plus:
 % box on
