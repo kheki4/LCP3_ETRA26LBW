@@ -18,6 +18,7 @@ StimOnScreenSec = NaN;
 
 Config.ExpDirName = '*';
 PerformGolayFiltering = false;
+GolayOrder = 5; % Has to be lower than the window length so for very low fps recordings this might need to be changed
 
 Config.ETDataFormat = 'SMI';
 % Config.ETDataFormat = 'PupilEXT'; 
@@ -33,9 +34,7 @@ Config.SkipRawTrialsP = [];
 % Config.PXorMM = true;
 Config.PXorMM = false;
 
-% GolayWinSizeFactor = 1.5; % Too flat
-GolayWinSizeFactor = 0.8;
-% GolayWinSizeFactor = 0.3; % DEV
+GolayWinSizeFactor = 0.1;
 
 % Config.HarFilt.Enabled = true;
 Config.HarFilt.Enabled = false;

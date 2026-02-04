@@ -1,11 +1,11 @@
 
 % PLR LUND
 
-Config.ETDSDirName = 'PLR_LUND_DQ_MM_Tobii';
-Config.Plot.GrandTEPR.LineColor = '#1170be'; % matlab stock blue, but reproducible
+% Config.ETDSDirName = 'PLR_LUND_DQ_MM_Tobii';
+% Config.Plot.GrandTEPR.LineColor = '#1170be'; % matlab stock blue, but reproducible
 
-% Config.ETDSDirName = 'PLR_LUND_DQ_PX_PupilEXT';
-% Config.Plot.GrandTEPR.LineColor = '#dd5500'; % matlab stock orange, but reproducible
+Config.ETDSDirName = 'PLR_LUND_DQ_PX_PupilEXT';
+Config.Plot.GrandTEPR.LineColor = '#dd5500'; % matlab stock orange, but reproducible
 
 % % Plus:
 % box on
@@ -42,7 +42,7 @@ Config.Plots.DrawTitle = false;
 Config.ERL.Enabled = true;
 Config.ERL.Method = 2; % next local minimum
 Config.ERL.FromSec = 0.5;
-Config.ERL.ToSec = 2.0;
+Config.ERL.ToSec = 4.0;
 
 Config.Plot.TEPR.Make = true; % FOR EACH PERSON
 Config.Plot.TEPR.EveryTrial = true; 

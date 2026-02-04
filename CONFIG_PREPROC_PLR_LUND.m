@@ -3,8 +3,10 @@ Config.ExpDirName = 'PLR_LUND';
 
 ISISec = 10.250;
 StimOnScreenSec = 4.0;
-PerformGolayFiltering = true;
 
+PerformGolayFiltering = true;
+GolayWinSizeFactor = 0.1;
+GolayOrder = 4;
 
 % Config.ETDataFormat = 'Tobii';
 % Config.PXorMM = false;
@@ -13,10 +15,6 @@ Config.ETDataFormat = 'PupilEXT';
 Config.PXorMM = true;
 
 Config.OutputNomSRate = 40; % Hz
-
-
-GolayWinSizeFactor = 0.1;
-GolayOrder = 4;
 
 Config.MapBehav = false;
 
