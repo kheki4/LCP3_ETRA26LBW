@@ -71,6 +71,9 @@ grid minor
 ffa = get(0, 'Screensize');
 set(gcf, 'Position', [1 1 ffa(3)*1/4 ffa(4)*1/3]);
 
+exportgraphics(gcf,'Figure_2a.png','Resolution',300)
+pause(1)
+
 %%
 disp('--')
 disp('Y difference (in a.u.):')
@@ -104,6 +107,9 @@ grid minor
 %
 ffa = get(0, 'Screensize');
 set(gcf, 'Position', [1 1 ffa(3)*1/4 ffa(4)*1/3]);
+
+exportgraphics(gcf,'Figure_2b.png','Resolution',300)
+pause(1)
 
 %%
 T = table( ...

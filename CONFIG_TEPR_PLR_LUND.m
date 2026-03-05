@@ -10,8 +10,13 @@ Config.Plot.GrandTEPR.LineColor = '#dd5500'; % matlab stock orange, but reproduc
 % % Plus:
 % box on
 % legend({'Spark'}, 'Location', 'southeast')
+% exportgraphics(gcf,'Figure_2c.png','Resolution',300)
+% %
 % % or
+% %
+% box on
 % legend({'PupilEXT'}, 'Location', 'southeast')
+% exportgraphics(gcf,'Figure_2d.png','Resolution',300)
 
 Config.Z_norm_method = 2; % Reference to each trial for its own
 
