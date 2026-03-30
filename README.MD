@@ -12,7 +12,7 @@ Shapiro normality test implementation was used from [https://www.mathworks.com/m
 
 The scripts only work with Matlab yet.
 
-Please consider to cite [this publication -- TODO REF](http://www.example.com) if you are using PupilEXT v0.1.3b in your project, along with the [paper on the initial version by Zandi and colleauges](https://doi.org/10.3389/fnins.2021.676220).
+Please consider to cite [this ETRA'26 Proceedings abstract](http://doi.org/10.1145/3797246.3805836) if you are using PupilEXT v0.1.3b in your project, along with the [paper on the initial version by Zandi and colleauges](https://doi.org/10.3389/fnins.2021.676220).
 
 Author: Gábor Bényei @ BUTE
 
